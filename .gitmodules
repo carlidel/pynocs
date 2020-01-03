@@ -1,0 +1,3 @@
+[submodule "src/nocs"]
+	path = src/nocs
+	url = https://github.com/carlidel/nocs.git
