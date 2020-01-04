@@ -3,6 +3,14 @@ from setuptools.command.build_ext import build_ext
 import sys
 import setuptools
 import glob
+import os
+import re
+import sys
+import platform
+import subprocess
+
+from distutils.version import LooseVersion
+
 
 __version__ = '0.0.1'
 
@@ -22,20 +30,57 @@ class get_pybind_include(object):
         return pybind11.get_include(self.user)
 
 
-ext_modules = [
-    Extension(
-        'TODO>>>>CPP_EXTENSION_NAME<<<<',
-        glob.glob('src/*.cpp'),
-        include_dirs=[
-            'src/',
-            # Path to pybind11 headers
-            get_pybind_include(),
-            get_pybind_include(user=True),
-        ],
-        #define_macros=[('THRUST_DEVICE_SYSTEM','THRUST_DEVICE_SYSTEM_OMP')], # IF USING THRUST OPENMP
-        language='c++',
-    ),
-]
+class CMakeExtension(Extension):
+    def __init__(self, name, sourcedir=''):
+        Extension.__init__(self, name, sources=[])
+        self.sourcedir = os.path.abspath(sourcedir)
+
+
+class CMakeBuild(build_ext):
+    def run(self):
+        try:
+            out = subprocess.check_output(['cmake', '--version'])
+        except OSError:
+            raise RuntimeError("CMake must be installed to build the following extensions: " +
+                               ", ".join(e.name for e in self.extensions))
+
+        if platform.system() == "Windows":
+            cmake_version = LooseVersion(
+                re.search(r'version\s*([\d.]+)', out.decode()).group(1))
+            if cmake_version < '3.1.0':
+                raise RuntimeError("CMake >= 3.1.0 is required on Windows")
+
+        for ext in self.extensions:
+            self.build_extension(ext)
+
+    def build_extension(self, ext):
+        extdir = os.path.abspath(os.path.dirname(
+            self.get_ext_fullpath(ext.name)))
+        cmake_args = ['-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=' + extdir,
+                      '-DPYTHON_EXECUTABLE=' + sys.executable]
+
+        cfg = 'Debug' if self.debug else 'Release'
+        build_args = ['--config', cfg]
+
+        if platform.system() == "Windows":
+            cmake_args += [
+                '-DCMAKE_LIBRARY_OUTPUT_DIRECTORY_{}={}'.format(cfg.upper(), extdir)]
+            if sys.maxsize > 2**32:
+                cmake_args += ['-A', 'x64']
+            build_args += ['--', '/m']
+        else:
+            cmake_args += ['-DCMAKE_BUILD_TYPE=' + cfg]
+            build_args += ['--', '-j2']
+
+        env = os.environ.copy()
+        env['CXXFLAGS'] = '{} -DVERSION_INFO=\\"{}\\"'.format(env.get('CXXFLAGS', ''),
+                                                              self.distribution.get_version())
+        if not os.path.exists(self.build_temp):
+            os.makedirs(self.build_temp)
+        subprocess.check_call(['cmake', ext.sourcedir] +
+                              cmake_args, cwd=self.build_temp, env=env)
+        subprocess.check_call(['cmake', '--build', '.'] +
+                              build_args, cwd=self.build_temp)
 
 
 # As of Python 3.6, CCompiler has a `has_flag` method.
@@ -106,18 +151,18 @@ class BuildExt(build_ext):
 
 
 setup(
-    name='PACKAGE_NAME',
+    name='pynocs',
     version=__version__,
     author='Carlo Emilio Montanari',
     author_email='carlidel95@gmail.com',
     url='PACKAGE_URL',
     description='PACKAGE_DESCRIPTION',
     long_description='',
-    ext_modules=ext_modules,
-    packages=['FOLDERS_TO_CONSIDER'],
-    install_requires=['pybind11>=2.4'],
-    setup_requires=['pybind11>=2.4'],
-    cmdclass={'build_ext': BuildExt},
+    packages=['pynocs'],
+    ext_modules=[CMakeExtension('pynocs.engine_wrapper', 'src/nocs/')],
+    install_requires=['pybind11>=2.4', 'numpy', 'pandas'],
+    setup_requires=['pybind11>=2.4', 'numpy', 'pandas'],
+    cmdclass=dict(build_ext=CMakeBuild),
     zip_safe=False,
-    license='MIT',
+    license='MIT'
 )

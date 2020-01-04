@@ -1,3 +1,13 @@
-# package_template
+# PYNOCS
 
-Basic python package template for personal use with pybind11 and python code.
+## How to install (dirty!)
+
+* Open command line in source folder.
+* Execute the following:
+  ```bash
+  pip install -e .
+  ```
+
+If your compiler set is fine and you have installed the pybind11 package... everything should work!
+
+For the rest, refer to the docstrings
