@@ -126,7 +126,7 @@ class nocs_tools(object):
             dataframe with all the informations about molecules
         """        
         data = self.engine.get_sim_photo()
-        df = pd.DataFrame(data, columns=['mass', 'radius', 'energy', 'x', 'y', 'v_x', 'v_y'])
+        df = pd.DataFrame(data, columns=['time', 'mass', 'radius', 'energy', 'x', 'y', 'v_x', 'v_y'])
         return df
 
     def get_tracking_data(self):
@@ -138,7 +138,7 @@ class nocs_tools(object):
             dataframe with all the informations about tracked molecules
         """        
         data = self.engine.get_tracking_data()
-        df = pd.DataFrame(data, columns=['id', 'time', 'mass', 'energy', 'x', 'y', 'v_x', 'v_y'])
+        df = pd.DataFrame(data, columns=['id', 'type', 'time', 'mass', 'energy', 'x', 'y', 'v_x', 'v_y'])
         return df
 
     def load_simulation_photo(self, df, tracking_lambda=lambda x:False):
