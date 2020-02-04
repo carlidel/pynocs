@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 
 from .engine_wrapper import engine_wrapper
+from .engine_wrapper import ostream_redirect
 
 class nocs_tools(object):
     """Simple wrapper for... the engine wrapper"""
@@ -114,7 +115,8 @@ class nocs_tools(object):
         time_interval : float
             interval of time
         """        
-        self.engine.run(time_interval)
+        with ostream_redirect(stdout=True, stderr=True):
+            self.engine.run(time_interval)
         self.time += time_interval
 
     def get_simulation_photo(self):
